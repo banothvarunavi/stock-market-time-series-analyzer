@@ -2,8 +2,48 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <string>
+#include <algorithm>
 
 #include "../include/stock_record.h"
+
+std::vector<std::string> parseCSVLine(const std::string& line)
+{
+    std::vector<std::string> fields;
+    std::string field;
+    bool inQuotes = false;
+
+    for (char ch : line)
+    {
+        if (ch == '"')
+        {
+            inQuotes = !inQuotes;
+        }
+        else if (ch == ',' && !inQuotes)
+        {
+            fields.push_back(field);
+            field.clear();
+        }
+        else
+        {
+            field += ch;
+        }
+    }
+
+    fields.push_back(field);
+
+    return fields;
+}
+
+std::string removeCommas(std::string value)
+{
+    value.erase(
+        std::remove(value.begin(), value.end(), ','),
+        value.end()
+    );
+
+    return value;
+}
 
 int main()
 {
@@ -24,28 +64,32 @@ int main()
 
     while (std::getline(file, line))
     {
-        std::stringstream ss(line);
+        if (line.empty())
+            continue;
+
+        std::vector<std::string> fields = parseCSVLine(line);
+
+        if (fields.size() < 6)
+            continue;
 
         StockRecord stock;
 
-        std::string openPrice;
-        std::string highPrice;
-        std::string lowPrice;
-        std::string closePrice;
-        std::string volume;
+        stock.date = fields[0];
 
-        std::getline(ss, stock.date, ',');
-        std::getline(ss, openPrice, ',');
-        std::getline(ss, highPrice, ',');
-        std::getline(ss, lowPrice, ',');
-        std::getline(ss, closePrice, ',');
-        std::getline(ss, volume, ',');
+        stock.open =
+            std::stod(removeCommas(fields[1]));
 
-        stock.open = std::stod(openPrice);
-        stock.high = std::stod(highPrice);
-        stock.low = std::stod(lowPrice);
-        stock.close = std::stod(closePrice);
-        stock.volume = std::stoll(volume);
+        stock.high =
+            std::stod(removeCommas(fields[2]));
+
+        stock.low =
+            std::stod(removeCommas(fields[3]));
+
+        stock.close =
+            std::stod(removeCommas(fields[4]));
+
+        stock.volume =
+            std::stoll(removeCommas(fields[5]));
 
         stocks.push_back(stock);
     }
