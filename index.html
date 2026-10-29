@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>StockSense | Stock Market Analyzer</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="app.js" defer></script>
+</head>
+
+<body>
+
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-icon">S</div>
+            <div>
+                <h2>StockSense</h2>
+                <p>MARKET ANALYTICS</p>
+            </div>
+        </div>
+
+        <nav>
+            <a href="#overview" class="nav-link active">▦ &nbsp; Dashboard</a>
+            <a href="#price-chart" class="nav-link">↗ &nbsp; Price Analysis</a>
+            <a href="#data-section" class="nav-link">▤ &nbsp; Stock Data</a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <span class="status-dot"></span>
+            <span>Historical Data Analysis</span>
+        </div>
+    </aside>
+
+    <main class="main-content">
+
+        <header class="topbar">
+            <div>
+                <p class="eyebrow">MARKET INTELLIGENCE / OVERVIEW</p>
+                <h1>Stock Market Dashboard</h1>
+                <p class="subtitle">
+                    Analyse historical prices and moving averages.
+                </p>
+            </div>
+
+            <div class="project-badge">
+                <span class="status-dot"></span>
+                C++ Analysis Project
+            </div>
+        </header>
+
+        <section class="upload-panel">
+            <div>
+                <h3>Load Your Stock Data</h3>
+                <p>Select a CSV file containing your historical stock data.</p>
+            </div>
+
+            <label for="csvFile" class="upload-button">
+                ↑ &nbsp; Choose CSV File
+            </label>
+
+            <input type="file" id="csvFile" accept=".csv,text/csv">
+
+            <span id="fileStatus" class="file-status">
+                No file selected
+            </span>
+        </section>
+
+        <section id="overview">
+            <div class="section-heading">
+                <div>
+                    <h2>Market Overview</h2>
+                    <p>Key statistics for your selected stock data.</p>
+                </div>
+                <span class="live-badge">HISTORICAL DATA</span>
+            </div>
+
+            <div class="stats-grid">
+
+                <article class="stat-card">
+                    <div class="stat-label">Latest Close</div>
+                    <div class="stat-value" id="latestClose">—</div>
+                    <div class="stat-note">Most recent closing price</div>
+                </article>
+
+                <article class="stat-card">
+                    <div class="stat-label">Highest Close</div>
+                    <div class="stat-value" id="highestClose">—</div>
+                    <div class="stat-note">Highest closing price</div>
+                </article>
+
+                <article class="stat-card">
+                    <div class="stat-label">Lowest Close</div>
+                    <div class="stat-value" id="lowestClose">—</div>
+                    <div class="stat-note">Lowest closing price</div>
+                </article>
+
+                <article class="stat-card">
+                    <div class="stat-label">Period Return</div>
+                    <div class="stat-value" id="periodReturn">—</div>
+                    <div class="stat-note">Change from first to last close</div>
+                </article>
+
+            </div>
+        </section>
+
+        <section class="chart-panel" id="price-chart">
+
+            <div class="panel-heading">
+                <div>
+                    <h2>Price & Moving Average Analysis</h2>
+                    <p>Compare closing prices with SMA and EMA.</p>
+                </div>
+
+                <select id="chartRange" aria-label="Select chart date range">
+                    <option value="all">All Available Data</option>
+                    <option value="365">Last 1 Year</option>
+                    <option value="180">Last 6 Months</option>
+                    <option value="90">Last 3 Months</option>
+                    <option value="30">Last 30 Days</option>
+                </select>
+            </div>
+
+            <div class="chart-legend">
+                <span>
+                    <i class="legend-dot closing-dot"></i>
+                    Closing Price
+                </span>
+
+                <span>
+                    <i class="legend-dot sma-dot"></i>
+                    SMA
+                </span>
+
+                <span>
+                    <i class="legend-dot ema-dot"></i>
+                    EMA
+                </span>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="stockChart"></canvas>
+
+                <div id="chartPlaceholder" class="chart-placeholder">
+                    <div class="placeholder-icon">↗</div>
+                    <h3>Your Stock Chart Will Appear Here</h3>
+                    <p>Choose a CSV file above to visualise historical prices.</p>
+                </div>
+            </div>
+
+        </section>
+
+        <section class="data-panel" id="data-section">
+
+            <div class="panel-heading">
+                <div>
+                    <h2>Stock Records</h2>
+                    <p id="recordCount">No records loaded</p>
+                </div>
+
+                <button id="downloadBtn" class="secondary-button" disabled>
+                    ↓ &nbsp; Download CSV
+                </button>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Open</th>
+                            <th>High</th>
+                            <th>Low</th>
+                            <th>Close</th>
+                            <th>Volume</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="stockTableBody">
+                        <tr>
+                            <td colspan="6" class="empty-table">
+                                Load a CSV file to display stock records.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </section>
+
+        <footer>
+            <span>STOCKSENSE · STOCK MARKET ANALYZER</span>
+            <span>Built with C++ · HTML · CSS · JavaScript</span>
+        </footer>
+
+    </main>
+
+</body>
+</html>
