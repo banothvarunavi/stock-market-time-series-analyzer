@@ -319,8 +319,8 @@ Make sure the CSV file is available at the path expected by the program.
 
 ## 12. Team Members
 Team members:
-VARUNAVI.B(251112)
-DIVYA SRI.P(251141)
+- VARUNAVI.B(251112)
+- DIVYA SRI.P(251141)
 
 **Course Code:** CS3104
 
