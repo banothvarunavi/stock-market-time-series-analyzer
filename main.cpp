@@ -2,100 +2,87 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
-#include <iomanip>
 #include <string>
-#include <algorithm>
 
 #include "include/stock_record.h"
 #include "include/analysis.h"
 
-std::string removeCommas(std::string value)
+using namespace std;
+
+// Remove commas from numbers like "26,075.10"
+string removeCommas(string value)
 {
-    value.erase(
-        std::remove(value.begin(), value.end(), ','),
-        value.end()
-    );
+    string result;
 
-    return value;
-}
-
-std::vector<std::string> parseCSVLine(const std::string& line)
-{
-    std::vector<std::string> fields;
-    std::string field;
-    bool inQuotes = false;
-
-    for (char ch : line)
+    for (char c : value)
     {
-        if (ch == '"')
+        if (c != ',')
         {
-            inQuotes = !inQuotes;
-        }
-        else if (ch == ',' && !inQuotes)
-        {
-            fields.push_back(field);
-            field.clear();
-        }
-        else
-        {
-            field += ch;
+            result += c;
         }
     }
 
-    fields.push_back(field);
-
-    return fields;
+    return result;
 }
 
-std::vector<StockRecord> loadStockData()
+// Load stock data from CSV file
+vector<StockRecord> loadStockData()
 {
-    std::vector<StockRecord> stocks;
+    vector<StockRecord> records;
 
-    std::ifstream file("data/stock_data.csv");
+    ifstream file("data/stock_data.csv");
 
-    if (!file)
+    if (!file.is_open())
     {
-        std::cout << "Unable to open stock data file.\n";
-        return stocks;
+        cout << "Error: Could not open stock_data.csv" << endl;
+        return records;
     }
 
-    std::string line;
+    string line;
 
-    // Skip CSV header
-    std::getline(file, line);
+    // Skip header
+    getline(file, line);
 
-    while (std::getline(file, line))
+    while (getline(file, line))
     {
-        if (line.empty())
-            continue;
+        vector<string> fields;
+        string field;
+        bool insideQuotes = false;
 
-        std::vector<std::string> fields = parseCSVLine(line);
+        for (char c : line)
+        {
+            if (c == '"')
+            {
+                insideQuotes = !insideQuotes;
+            }
+            else if (c == ',' && !insideQuotes)
+            {
+                fields.push_back(field);
+                field.clear();
+            }
+            else
+            {
+                field += c;
+            }
+        }
+
+        fields.push_back(field);
 
         if (fields.size() < 6)
             continue;
 
         try
         {
-            StockRecord stock;
+            StockRecord record;
 
-            stock.date = fields[0];
+            record.date = fields[0];
+            record.open = stod(removeCommas(fields[1]));
+            record.high = stod(removeCommas(fields[2]));
+            record.low = stod(removeCommas(fields[3]));
+            record.close = stod(removeCommas(fields[4]));
+            record.volume = stoll(removeCommas(fields[5]));
 
-            stock.open =
-                std::stod(removeCommas(fields[1]));
-
-            stock.high =
-                std::stod(removeCommas(fields[2]));
-
-            stock.low =
-                std::stod(removeCommas(fields[3]));
-
-            stock.close =
-                std::stod(removeCommas(fields[4]));
-
-            stock.volume =
-                std::stoll(removeCommas(fields[5]));
-
-            stocks.push_back(stock);
+            records.push_back(record);
         }
         catch (...)
         {
@@ -103,54 +90,55 @@ std::vector<StockRecord> loadStockData()
         }
     }
 
-    return stocks;
+    file.close();
+
+    return records;
 }
 
 int main()
 {
-    std::vector<StockRecord> stocks = loadStockData();
+    vector<StockRecord> records = loadStockData();
 
-    if (stocks.empty())
+    cout << "Records loaded: " << records.size() << endl;
+
+    vector<double> closingPrices;
+
+    for (const auto& record : records)
     {
-        return 1;
+        closingPrices.push_back(record.close);
     }
 
-    std::vector<double> closingPrices;
+    // 3-Day SMA
+    vector<double> sma = calculateSMA(closingPrices, 3);
 
-    for (const StockRecord& stock : stocks)
-    {
-        closingPrices.push_back(stock.close);
-    }
-
-    int period = 3;
-
-    std::vector<double> sma =
-        calculateSMA(closingPrices, period);
-
-    std::vector<double> ema =
-        calculateEMA(closingPrices, period);
-
-    std::cout << "Records loaded: "
-              << stocks.size() << "\n\n";
-
-    std::cout << "3-Day SMA\n";
-    std::cout << "---------\n";
+    cout << "\n3-Day SMA" << endl;
+    cout << "---------" << endl;
 
     for (double value : sma)
     {
-        std::cout << std::fixed
-                  << std::setprecision(2)
-                  << value << "\n";
+        cout << value << endl;
     }
 
-    std::cout << "\n3-Day EMA\n";
-    std::cout << "---------\n";
+    // 3-Day EMA
+    vector<double> ema = calculateEMA(closingPrices, 3);
+
+    cout << "\n3-Day EMA" << endl;
+    cout << "---------" << endl;
 
     for (double value : ema)
     {
-        std::cout << std::fixed
-                  << std::setprecision(2)
-                  << value << "\n";
+        cout << value << endl;
+    }
+
+    // MACD
+    vector<double> macd = calculateMACD(closingPrices);
+
+    cout << "\nMACD (12,26)" << endl;
+    cout << "------------" << endl;
+
+    for (double value : macd)
+    {
+        cout << value << endl;
     }
 
     return 0;
