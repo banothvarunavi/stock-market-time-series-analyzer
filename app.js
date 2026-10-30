@@ -1,5 +1,3 @@
-?variant="standard" id="62843" title="Complete app.js"}
-```javascript
 let stockData = [];
 let stockChart = null;
 let macdChart = null;
@@ -7,7 +5,9 @@ let macdChart = null;
 const csvInput = document.getElementById("csvFile");
 const rangeSelector = document.getElementById("chartRange");
 
-/* ---------------- CSV PARSER ---------------- */
+/* =================================
+   1. CSV PARSING
+================================= */
 
 function parseCSVLine(line) {
     const result = [];
@@ -46,7 +46,9 @@ function findColumn(headers, possibleNames) {
             header => normalizeHeader(header) === name
         );
 
-        if (index !== -1) return index;
+        if (index !== -1) {
+            return index;
+        }
     }
 
     return -1;
@@ -55,17 +57,24 @@ function findColumn(headers, possibleNames) {
 function numberValue(value) {
     const cleaned = String(value ?? "").replace(/,/g, "").trim();
 
-    if (!cleaned || cleaned === "-") return NaN;
+    if (cleaned === "" || cleaned === "-") {
+        return NaN;
+    }
 
     const number = Number(cleaned);
+
     return Number.isFinite(number) ? number : NaN;
 }
 
+/* =================================
+   2. LOAD CSV FILE
+================================= */
+
 function loadCSV(text) {
-    const lines = text.trim().split(/\r?\n/);
+    const lines = text.replace(/^\uFEFF/, "").trim().split(/\r?\n/);
 
     if (lines.length < 2) {
-        alert("The CSV file does not contain enough data.");
+        alert("CSV file does not contain enough data.");
         return;
     }
 
@@ -82,7 +91,7 @@ function loadCSV(text) {
     const highIndex = findColumn(headers, ["high"]);
     const lowIndex = findColumn(headers, ["low"]);
 
-    let closeIndex = findColumn(headers, [
+    const closeIndex = findColumn(headers, [
         "close",
         "adjclose",
         "closingprice",
@@ -92,42 +101,55 @@ function loadCSV(text) {
     const volumeIndex = findColumn(headers, ["volume"]);
 
     if (dateIndex === -1 || closeIndex === -1) {
-        alert("Could not identify the Date and Close columns in this CSV.");
+        alert("Date or Close column not found in CSV file.");
         return;
     }
 
-    const parsed = [];
+    const parsedData = [];
 
     for (let i = 1; i < lines.length; i++) {
-        if (!lines[i].trim()) continue;
+        if (!lines[i].trim()) {
+            continue;
+        }
 
         const row = parseCSVLine(lines[i]);
 
         const date = row[dateIndex];
         const close = numberValue(row[closeIndex]);
 
-        if (!date || !Number.isFinite(close)) continue;
+        if (!date || !Number.isFinite(close)) {
+            continue;
+        }
 
-        parsed.push({
+        parsedData.push({
             date: date,
+
             open: openIndex !== -1
-                ? numberValue(row[openIndex]) : NaN,
+                ? numberValue(row[openIndex])
+                : NaN,
+
             high: highIndex !== -1
-                ? numberValue(row[highIndex]) : NaN,
+                ? numberValue(row[highIndex])
+                : NaN,
+
             low: lowIndex !== -1
-                ? numberValue(row[lowIndex]) : NaN,
+                ? numberValue(row[lowIndex])
+                : NaN,
+
             close: close,
+
             volume: volumeIndex !== -1
-                ? numberValue(row[volumeIndex]) : NaN
+                ? numberValue(row[volumeIndex])
+                : NaN
         });
     }
 
-    if (parsed.length === 0) {
-        alert("No valid stock records were found.");
+    if (parsedData.length === 0) {
+        alert("No valid stock records found.");
         return;
     }
 
-    parsed.sort((a, b) => {
+    parsedData.sort((a, b) => {
         const dateA = Date.parse(a.date);
         const dateB = Date.parse(b.date);
 
@@ -138,7 +160,7 @@ function loadCSV(text) {
         return a.date.localeCompare(b.date);
     });
 
-    stockData = parsed;
+    stockData = parsedData;
 
     updateDashboard();
     updatePriceChart();
@@ -146,13 +168,20 @@ function loadCSV(text) {
     updateBreakouts();
     updateStockTable();
 
-    alert("CSV loaded successfully! " + stockData.length + " records found.");
+    alert(
+        "CSV loaded successfully!\n" +
+        stockData.length +
+        " stock records loaded."
+    );
 }
 
-/* ---------------- EMA CALCULATION ---------------- */
+/* =================================
+   3. EMA CALCULATION
+================================= */
 
 function calculateEMA(values, period) {
     const result = [];
+
     const multiplier = 2 / (period + 1);
 
     let previousEMA = null;
@@ -176,33 +205,48 @@ function calculateEMA(values, period) {
     return result;
 }
 
-/* ---------------- SMA CALCULATION ---------------- */
+/* =================================
+   4. SMA CALCULATION
+================================= */
 
 function calculateSMA(values, period) {
     return values.map((value, index) => {
-        if (index < period - 1) return null;
+        if (index < period - 1) {
+            return null;
+        }
 
-        const window = values.slice(index - period + 1, index + 1);
+        const window = values.slice(
+            index - period + 1,
+            index + 1
+        );
 
         if (window.some(item => !Number.isFinite(item))) {
             return null;
         }
 
-        const total = window.reduce((sum, item) => sum + item, 0);
+        const sum = window.reduce(
+            (total, item) => total + item,
+            0
+        );
 
-        return total / period;
+        return sum / period;
     });
 }
 
-/* ---------------- DASHBOARD SUMMARY ---------------- */
+/* =================================
+   5. DASHBOARD SUMMARY
+================================= */
 
 function updateDashboard() {
+    if (stockData.length === 0) {
+        return;
+    }
+
     const closes = stockData.map(item => item.close);
 
     const latest = closes[closes.length - 1];
     const highest = Math.max(...closes);
     const lowest = Math.min(...closes);
-
     const first = closes[0];
 
     const periodReturn = first !== 0
@@ -222,32 +266,41 @@ function updateDashboard() {
         periodReturn.toFixed(2) + "%";
 }
 
-/* ---------------- CHART RANGE ---------------- */
+/* =================================
+   6. CHART RANGE
+================================= */
 
-function getVisibleData(data) {
+function getVisibleStartIndex() {
     const range = rangeSelector.value;
 
-    if (range === "all") return data;
+    if (range === "all") {
+        return 0;
+    }
 
     const count = Number(range);
 
-    return data.slice(-count);
+    return Math.max(0, stockData.length - count);
 }
 
-/* ---------------- PRICE CHART ---------------- */
+/* =================================
+   7. PRICE ANALYSIS CHART
+================================= */
 
 function updatePriceChart() {
+    if (stockData.length === 0) {
+        return;
+    }
+
     const closes = stockData.map(item => item.close);
 
     const sma = calculateSMA(closes, 20);
     const ema = calculateEMA(closes, 20);
 
-    const labels = stockData.map(item => item.date);
+    const startIndex = getVisibleStartIndex();
 
-    const visible = getVisibleData(stockData);
-    const startIndex = stockData.length - visible.length;
-
-    const visibleLabels = labels.slice(startIndex);
+    const labels = stockData
+        .slice(startIndex)
+        .map(item => item.date);
 
     const visibleClose = closes.slice(startIndex);
     const visibleSMA = sma.slice(startIndex);
@@ -255,35 +308,46 @@ function updatePriceChart() {
 
     const ctx = document.getElementById("stockChart");
 
-    if (stockChart) stockChart.destroy();
+    if (stockChart) {
+        stockChart.destroy();
+    }
 
     stockChart = new Chart(ctx, {
         type: "line",
 
         data: {
-            labels: visibleLabels,
+            labels: labels,
 
             datasets: [
                 {
                     label: "Closing Price",
+
                     data: visibleClose,
+
                     borderColor: "#1d4ed8",
                     backgroundColor: "rgba(29,78,216,0.08)",
+
                     borderWidth: 2,
                     pointRadius: 0,
                     tension: 0.2
                 },
+
                 {
                     label: "SMA (20)",
+
                     data: visibleSMA,
+
                     borderColor: "#16a34a",
                     borderWidth: 2,
                     pointRadius: 0,
                     tension: 0.2
                 },
+
                 {
                     label: "EMA (20)",
+
                     data: visibleEMA,
+
                     borderColor: "#f59e0b",
                     borderWidth: 2,
                     pointRadius: 0,
@@ -318,25 +382,37 @@ function updatePriceChart() {
     });
 }
 
-/* ---------------- MACD CALCULATION ---------------- */
+/* =================================
+   8. MACD CALCULATION
+================================= */
 
 function updateMACD() {
+    if (stockData.length === 0) {
+        return;
+    }
+
     const closes = stockData.map(item => item.close);
 
+    // Calculate 12-day EMA
     const ema12 = calculateEMA(closes, 12);
+
+    // Calculate 26-day EMA
     const ema26 = calculateEMA(closes, 26);
 
+    // MACD = EMA(12) - EMA(26)
     const macdLine = ema12.map((value, index) => {
         return value - ema26[index];
     });
 
+    // Signal line = 9-day EMA of MACD
     const signalLine = calculateEMA(macdLine, 9);
 
+    // Histogram = MACD - Signal
     const histogram = macdLine.map((value, index) => {
         return value - signalLine[index];
     });
 
-    const lastIndex = closes.length - 1;
+    const lastIndex = stockData.length - 1;
 
     document.getElementById("latestMACD").textContent =
         macdLine[lastIndex].toFixed(4);
@@ -347,8 +423,7 @@ function updateMACD() {
     document.getElementById("latestHistogram").textContent =
         histogram[lastIndex].toFixed(4);
 
-    const visible = getVisibleData(stockData);
-    const startIndex = stockData.length - visible.length;
+    const startIndex = getVisibleStartIndex();
 
     const labels = stockData
         .slice(startIndex)
@@ -360,7 +435,9 @@ function updateMACD() {
 
     const ctx = document.getElementById("macdChart");
 
-    if (macdChart) macdChart.destroy();
+    if (macdChart) {
+        macdChart.destroy();
+    }
 
     macdChart = new Chart(ctx, {
         type: "bar",
@@ -371,29 +448,42 @@ function updateMACD() {
             datasets: [
                 {
                     type: "line",
+
                     label: "MACD Line",
+
                     data: visibleMACD,
+
                     borderColor: "#1d4ed8",
                     borderWidth: 2,
+
                     pointRadius: 0,
                     tension: 0.2
                 },
+
                 {
                     type: "line",
+
                     label: "Signal Line",
+
                     data: visibleSignal,
+
                     borderColor: "#f59e0b",
                     borderWidth: 2,
+
                     pointRadius: 0,
                     tension: 0.2
                 },
+
                 {
                     type: "bar",
+
                     label: "Histogram",
+
                     data: visibleHistogram,
-                    backgroundColor: visibleHistogram.map(value =>
-                        value >= 0 ? "#16a34a" : "#dc2626"
-                    )
+
+                    backgroundColor: visibleHistogram.map(value => {
+                        return value >= 0 ? "#16a34a" : "#dc2626";
+                    })
                 }
             ]
         },
@@ -424,15 +514,24 @@ function updateMACD() {
     });
 }
 
-/* ---------------- BREAKOUT DETECTION ---------------- */
+/* =================================
+   9. BREAKOUT DETECTION
+================================= */
 
 function updateBreakouts() {
+    if (stockData.length === 0) {
+        return;
+    }
+
     const signals = [];
 
+    // Start after 20 previous trading records
     for (let i = 20; i < stockData.length; i++) {
 
+        // Get previous 20 records
         const previousRecords = stockData.slice(i - 20, i);
 
+        // Find the highest price in those records
         const previousHighs = previousRecords.map(item => {
             return Number.isFinite(item.high)
                 ? item.high
@@ -441,8 +540,10 @@ function updateBreakouts() {
 
         const previous20DayHigh = Math.max(...previousHighs);
 
+        // Current day's closing price
         const currentClose = stockData[i].close;
 
+        // Check for bullish breakout
         if (currentClose > previous20DayHigh) {
             signals.push({
                 date: stockData[i].date,
@@ -452,53 +553,71 @@ function updateBreakouts() {
         }
     }
 
+    // Update total breakout count
     document.getElementById("bullishCount").textContent =
         signals.length;
 
+    // Update latest breakout date
     document.getElementById("latestBreakout").textContent =
         signals.length > 0
             ? signals[signals.length - 1].date
             : "No signal";
 
+    // Display breakout table
     const tbody = document.getElementById("breakoutTableBody");
 
     if (signals.length === 0) {
         tbody.innerHTML = `
             <tr>
                 <td colspan="4" class="empty-table">
-                    No bullish breakouts detected in the uploaded data.
+                    No bullish breakouts detected.
                 </td>
             </tr>
         `;
+
         return;
     }
 
+    // Show latest 20 breakout records
     const recentSignals = signals.slice(-20).reverse();
 
     tbody.innerHTML = recentSignals.map(signal => `
         <tr>
             <td>${escapeHTML(signal.date)}</td>
+
             <td>${signal.close.toFixed(2)}</td>
+
             <td>${signal.previousHigh.toFixed(2)}</td>
-            <td class="breakout-positive">Bullish Breakout</td>
+
+            <td class="breakout-positive">
+                Bullish Breakout
+            </td>
         </tr>
     `).join("");
 }
 
-/* ---------------- STOCK TABLE ---------------- */
+/* =================================
+   10. STOCK DATA TABLE
+================================= */
 
 function updateStockTable() {
     const tbody = document.getElementById("stockTableBody");
 
+    // Display latest 20 records
     const recentRecords = stockData.slice(-20).reverse();
 
     tbody.innerHTML = recentRecords.map(item => `
         <tr>
             <td>${escapeHTML(item.date)}</td>
+
             <td>${formatNumber(item.open)}</td>
+
             <td>${formatNumber(item.high)}</td>
+
             <td>${formatNumber(item.low)}</td>
+
             <td>${formatNumber(item.close)}</td>
+
             <td>${formatNumber(item.volume)}</td>
         </tr>
     `).join("");
@@ -507,42 +626,78 @@ function updateStockTable() {
         stockData.length + " records";
 }
 
+/* =================================
+   11. NUMBER FORMATTING
+================================= */
+
 function formatNumber(value) {
-    return Number.isFinite(value) ? value.toLocaleString("en-IN", {
+    if (!Number.isFinite(value)) {
+        return "—";
+    }
+
+    return value.toLocaleString("en-IN", {
         maximumFractionDigits: 2
-    }) : "—";
+    });
 }
+
+/* =================================
+   12. HTML ESCAPING
+================================= */
 
 function escapeHTML(value) {
-    return String(value).replace(/[&<>"']/g, character => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;"
-    })[character]);
+    return String(value).replace(/[&<>"']/g, character => {
+        const replacements = {
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;"
+        };
+
+        return replacements[character];
+    });
 }
 
-/* ---------------- CSV DOWNLOAD ---------------- */
+/* =================================
+   13. DOWNLOAD CSV
+================================= */
+
+function csvEscape(value) {
+    const text = String(value ?? "");
+
+    return '"' + text.replace(/"/g, '""') + '"';
+}
 
 document.getElementById("downloadBtn").addEventListener("click", () => {
+
     if (stockData.length === 0) {
         alert("Please upload stock data first.");
         return;
     }
 
-    const csv = [
-        ["Date", "Open", "High", "Low", "Close", "Volume"].join(","),
+    const rows = [];
 
-        ...stockData.map(item => [
+    rows.push([
+        "Date",
+        "Open",
+        "High",
+        "Low",
+        "Close",
+        "Volume"
+    ].join(","));
+
+    stockData.forEach(item => {
+        rows.push([
             item.date,
             item.open,
             item.high,
             item.low,
             item.close,
             item.volume
-        ].join(","))
-    ].join("\n");
+        ].map(csvEscape).join(","));
+    });
+
+    const csv = rows.join("\n");
 
     const blob = new Blob([csv], {
         type: "text/csv;charset=utf-8;"
@@ -551,24 +706,38 @@ document.getElementById("downloadBtn").addEventListener("click", () => {
     const url = URL.createObjectURL(blob);
 
     const link = document.createElement("a");
+
     link.href = url;
     link.download = "stock_analysis_data.csv";
+
+    document.body.appendChild(link);
     link.click();
 
+    document.body.removeChild(link);
     URL.revokeObjectURL(url);
 });
 
-/* ---------------- EVENT LISTENERS ---------------- */
+/* =================================
+   14. CSV UPLOAD EVENT
+================================= */
 
 csvInput.addEventListener("change", event => {
+
     const file = event.target.files[0];
 
-    if (!file) return;
+    if (!file) {
+        return;
+    }
 
     const reader = new FileReader();
 
     reader.onload = function(e) {
-        loadCSV(e.target.result);
+        try {
+            loadCSV(e.target.result);
+        } catch (error) {
+            console.error("CSV loading error:", error);
+            alert("An error occurred while processing the CSV file.");
+        }
     };
 
     reader.onerror = function() {
@@ -578,11 +747,17 @@ csvInput.addEventListener("change", event => {
     reader.readAsText(file);
 });
 
+/* =================================
+   15. CHART RANGE EVENT
+================================= */
+
 rangeSelector.addEventListener("change", () => {
-    if (stockData.length === 0) return;
+
+    if (stockData.length === 0) {
+        return;
+    }
 
     updatePriceChart();
     updateMACD();
 });
-```
 
