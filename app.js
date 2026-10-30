@@ -1,119 +1,75 @@
-"use strict";
-
-const csvFile = document.getElementById("csvFile");
-const fileStatus = document.getElementById("fileStatus");
-
-const latestClose = document.getElementById("latestClose");
-const highestClose = document.getElementById("highestClose");
-const lowestClose = document.getElementById("lowestClose");
-const periodReturn = document.getElementById("periodReturn");
-
-const chartCanvas = document.getElementById("stockChart");
-const chartPlaceholder = document.getElementById("chartPlaceholder");
-const chartRange = document.getElementById("chartRange");
-
-const stockTableBody = document.getElementById("stockTableBody");
-const recordCount = document.getElementById("recordCount");
-const downloadBtn = document.getElementById("downloadBtn");
-
+?variant="standard" id="62843" title="Complete app.js"}
+```javascript
 let stockData = [];
 let stockChart = null;
-let originalCSV = "";
+let macdChart = null;
 
-// Convert column names into a consistent format.
-function normaliseHeader(header) {
-    return header
-        .replace(/^\uFEFF/, "")
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, "");
-}
+const csvInput = document.getElementById("csvFile");
+const rangeSelector = document.getElementById("chartRange");
 
-// Read CSV properly, including fields enclosed in quotation marks.
-function parseCSV(text) {
-    const rows = [];
-    let row = [];
-    let field = "";
+/* ---------------- CSV PARSER ---------------- */
+
+function parseCSVLine(line) {
+    const result = [];
+    let value = "";
     let insideQuotes = false;
 
-    text = text.replace(/^\uFEFF/, "");
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
 
-    for (let i = 0; i < text.length; i++) {
-        const character = text[i];
-
-        if (character === '"') {
-            if (insideQuotes && text[i + 1] === '"') {
-                field += '"';
+        if (char === '"') {
+            if (insideQuotes && line[i + 1] === '"') {
+                value += '"';
                 i++;
             } else {
                 insideQuotes = !insideQuotes;
             }
-        } else if (character === "," && !insideQuotes) {
-            row.push(field.trim());
-            field = "";
-        } else if (
-            (character === "\n" || character === "\r") &&
-            !insideQuotes
-        ) {
-            if (character === "\r" && text[i + 1] === "\n") {
-                i++;
-            }
-
-            row.push(field.trim());
-
-            if (row.some(value => value !== "")) {
-                rows.push(row);
-            }
-
-            row = [];
-            field = "";
+        } else if (char === "," && !insideQuotes) {
+            result.push(value.trim());
+            value = "";
         } else {
-            field += character;
+            value += char;
         }
     }
 
-    row.push(field.trim());
-
-    if (row.some(value => value !== "")) {
-        rows.push(row);
-    }
-
-    return rows;
+    result.push(value.trim());
+    return result;
 }
 
-// Convert a price or volume value into a number.
-function toNumber(value) {
-    if (value === undefined || value === null || value.trim() === "") {
-        return NaN;
-    }
-
-    const cleaned = value.replace(/[$,\s]/g, "");
-    const number = Number(cleaned);
-
-    return Number.isFinite(number) ? number : NaN;
+function normalizeHeader(header) {
+    return header.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
-// Find the position of a column by its possible names.
 function findColumn(headers, possibleNames) {
     for (const name of possibleNames) {
-        const index = headers.indexOf(name);
+        const index = headers.findIndex(
+            header => normalizeHeader(header) === name
+        );
 
-        if (index !== -1) {
-            return index;
-        }
+        if (index !== -1) return index;
     }
 
     return -1;
 }
 
-// Convert CSV rows into stock records.
-function readStockData(csvText) {
-    const rows = parseCSV(csvText);
+function numberValue(value) {
+    const cleaned = String(value ?? "").replace(/,/g, "").trim();
 
-    if (rows.length < 2) {
-        throw new Error("The CSV file contains no data rows.");
+    if (!cleaned || cleaned === "-") return NaN;
+
+    const number = Number(cleaned);
+    return Number.isFinite(number) ? number : NaN;
+}
+
+function loadCSV(text) {
+    const lines = text.trim().split(/\r?\n/);
+
+    if (lines.length < 2) {
+        alert("The CSV file does not contain enough data.");
+        return;
     }
 
-    const headers = rows[0].map(normaliseHeader);
+    const headers = parseCSVLine(lines[0]);
 
     const dateIndex = findColumn(headers, [
         "date",
@@ -122,256 +78,218 @@ function readStockData(csvText) {
         "timestamp"
     ]);
 
-    const closeIndex = findColumn(headers, [
+    const openIndex = findColumn(headers, ["open"]);
+    const highIndex = findColumn(headers, ["high"]);
+    const lowIndex = findColumn(headers, ["low"]);
+
+    let closeIndex = findColumn(headers, [
         "close",
         "adjclose",
         "closingprice",
         "closing"
     ]);
 
+    const volumeIndex = findColumn(headers, ["volume"]);
+
     if (dateIndex === -1 || closeIndex === -1) {
-        throw new Error(
-            "Could not find Date and Close columns. Please check your CSV headers."
-        );
+        alert("Could not identify the Date and Close columns in this CSV.");
+        return;
     }
 
-    const openIndex = findColumn(headers, ["open", "openingprice"]);
-    const highIndex = findColumn(headers, ["high", "highestprice"]);
-    const lowIndex = findColumn(headers, ["low", "lowestprice"]);
-    const volumeIndex = findColumn(headers, ["volume", "totalvolume"]);
+    const parsed = [];
 
-    const records = [];
+    for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
 
-    for (let i = 1; i < rows.length; i++) {
-        const row = rows[i];
+        const row = parseCSVLine(lines[i]);
 
-        const dateText = row[dateIndex] || "";
-        const close = toNumber(row[closeIndex]);
-        const date = new Date(dateText);
+        const date = row[dateIndex];
+        const close = numberValue(row[closeIndex]);
 
-        if (
-            !dateText ||
-            Number.isNaN(date.getTime()) ||
-            !Number.isFinite(close)
-        ) {
-            continue;
-        }
+        if (!date || !Number.isFinite(close)) continue;
 
-        records.push({
+        parsed.push({
             date: date,
-            dateText: dateText,
-            open: openIndex === -1 ? NaN : toNumber(row[openIndex]),
-            high: highIndex === -1 ? NaN : toNumber(row[highIndex]),
-            low: lowIndex === -1 ? NaN : toNumber(row[lowIndex]),
+            open: openIndex !== -1
+                ? numberValue(row[openIndex]) : NaN,
+            high: highIndex !== -1
+                ? numberValue(row[highIndex]) : NaN,
+            low: lowIndex !== -1
+                ? numberValue(row[lowIndex]) : NaN,
             close: close,
-            volume: volumeIndex === -1 ? "" : row[volumeIndex]
+            volume: volumeIndex !== -1
+                ? numberValue(row[volumeIndex]) : NaN
         });
     }
 
-    if (records.length === 0) {
-        throw new Error(
-            "No valid stock records were found. Check your dates and closing prices."
-        );
+    if (parsed.length === 0) {
+        alert("No valid stock records were found.");
+        return;
     }
 
-    // Sort dates from oldest to newest.
-    records.sort((a, b) => a.date - b.date);
+    parsed.sort((a, b) => {
+        const dateA = Date.parse(a.date);
+        const dateB = Date.parse(b.date);
 
-    return records;
-}
-
-// Calculate the Simple Moving Average.
-function calculateSMA(records, period = 20) {
-    return records.map((record, index) => {
-        if (index < period - 1) {
-            return null;
+        if (Number.isFinite(dateA) && Number.isFinite(dateB)) {
+            return dateA - dateB;
         }
 
-        const recentRecords = records.slice(
-            index - period + 1,
-            index + 1
-        );
-
-        const total = recentRecords.reduce(
-            (sum, item) => sum + item.close,
-            0
-        );
-
-        return total / period;
+        return a.date.localeCompare(b.date);
     });
+
+    stockData = parsed;
+
+    updateDashboard();
+    updatePriceChart();
+    updateMACD();
+    updateBreakouts();
+    updateStockTable();
+
+    alert("CSV loaded successfully! " + stockData.length + " records found.");
 }
 
-// Calculate the Exponential Moving Average.
-function calculateEMA(records, period = 20) {
+/* ---------------- EMA CALCULATION ---------------- */
+
+function calculateEMA(values, period) {
     const result = [];
     const multiplier = 2 / (period + 1);
 
-    let ema = records[0].close;
+    let previousEMA = null;
 
-    records.forEach((record, index) => {
-        if (index === 0) {
-            ema = record.close;
-        } else {
-            ema =
-                record.close * multiplier +
-                ema * (1 - multiplier);
+    values.forEach(value => {
+        if (!Number.isFinite(value)) {
+            result.push(null);
+            return;
         }
 
-        result.push(ema);
+        if (previousEMA === null) {
+            previousEMA = value;
+        } else {
+            previousEMA =
+                (value - previousEMA) * multiplier + previousEMA;
+        }
+
+        result.push(previousEMA);
     });
 
     return result;
 }
 
-// Format numbers for the dashboard.
-function formatPrice(value) {
-    return Number(value).toLocaleString("en-IN", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    });
-}
+/* ---------------- SMA CALCULATION ---------------- */
 
-// Format dates consistently.
-function formatDate(date) {
-    return date.toLocaleDateString("en-IN", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric"
-    });
-}
+function calculateSMA(values, period) {
+    return values.map((value, index) => {
+        if (index < period - 1) return null;
 
-// Update the four summary cards.
-function updateStatistics(records) {
-    const first = records[0].close;
-    const last = records[records.length - 1].close;
+        const window = values.slice(index - period + 1, index + 1);
 
-    const highest = Math.max(...records.map(item => item.close));
-    const lowest = Math.min(...records.map(item => item.close));
-
-    const change = first !== 0
-        ? ((last - first) / first) * 100
-        : NaN;
-
-    latestClose.textContent = formatPrice(last);
-    highestClose.textContent = formatPrice(highest);
-    lowestClose.textContent = formatPrice(lowest);
-
-    periodReturn.textContent = Number.isFinite(change)
-        ? `${change >= 0 ? "+" : ""}${change.toFixed(2)}%`
-        : "N/A";
-
-    periodReturn.style.color =
-        change > 0 ? "#16865c" :
-        change < 0 ? "#d14343" :
-        "";
-}
-
-// Display the stock records in the table.
-function updateTable(records) {
-    const visibleRecords = records.slice(-20).reverse();
-
-    stockTableBody.innerHTML = "";
-
-    visibleRecords.forEach(record => {
-        const row = document.createElement("tr");
-
-        const values = [
-            formatDate(record.date),
-            Number.isFinite(record.open) ? formatPrice(record.open) : "—",
-            Number.isFinite(record.high) ? formatPrice(record.high) : "—",
-            Number.isFinite(record.low) ? formatPrice(record.low) : "—",
-            formatPrice(record.close),
-            record.volume || "—"
-        ];
-
-        values.forEach(value => {
-            const cell = document.createElement("td");
-            cell.textContent = value;
-            row.appendChild(cell);
-        });
-
-        stockTableBody.appendChild(row);
-    });
-
-    recordCount.textContent =
-        `${records.length.toLocaleString("en-IN")} records loaded. Showing the latest ${visibleRecords.length}.`;
-}
-
-// Show the chart and its moving averages.
-function updateChart() {
-    if (typeof Chart === "undefined") {
-        fileStatus.textContent =
-            "CSV loaded, but the chart library could not load. Check your internet connection.";
-        return;
-    }
-
-    let records = [...stockData];
-
-    const days = chartRange.value;
-
-    if (days !== "all") {
-        const latestDate = records[records.length - 1].date;
-
-        const cutoff = new Date(latestDate);
-        cutoff.setDate(cutoff.getDate() - Number(days));
-
-        records = records.filter(record => record.date >= cutoff);
-    }
-
-    if (records.length === 0) {
-        return;
-    }
-
-    const sma = calculateSMA(records);
-    const ema = calculateEMA(records);
-
-    const labels = records.map(record => formatDate(record.date));
-
-    const datasets = [
-        {
-            label: "Closing Price",
-            data: records.map(record => record.close),
-            borderColor: "#2449a5",
-            backgroundColor: "rgba(36, 73, 165, 0.10)",
-            borderWidth: 2,
-            pointRadius: 0,
-            pointHoverRadius: 4,
-            tension: 0.2,
-            fill: true
-        },
-        {
-            label: "SMA (20)",
-            data: sma,
-            borderColor: "#e5a23b",
-            borderWidth: 2,
-            pointRadius: 0,
-            tension: 0.2,
-            fill: false,
-            spanGaps: false
-        },
-        {
-            label: "EMA (20)",
-            data: ema,
-            borderColor: "#159b83",
-            borderWidth: 2,
-            pointRadius: 0,
-            tension: 0.2,
-            fill: false
+        if (window.some(item => !Number.isFinite(item))) {
+            return null;
         }
-    ];
 
-    if (stockChart) {
-        stockChart.destroy();
-    }
+        const total = window.reduce((sum, item) => sum + item, 0);
 
-    chartPlaceholder.style.display = "none";
+        return total / period;
+    });
+}
 
-    stockChart = new Chart(chartCanvas, {
+/* ---------------- DASHBOARD SUMMARY ---------------- */
+
+function updateDashboard() {
+    const closes = stockData.map(item => item.close);
+
+    const latest = closes[closes.length - 1];
+    const highest = Math.max(...closes);
+    const lowest = Math.min(...closes);
+
+    const first = closes[0];
+
+    const periodReturn = first !== 0
+        ? ((latest - first) / first) * 100
+        : 0;
+
+    document.getElementById("latestClose").textContent =
+        latest.toFixed(2);
+
+    document.getElementById("highestClose").textContent =
+        highest.toFixed(2);
+
+    document.getElementById("lowestClose").textContent =
+        lowest.toFixed(2);
+
+    document.getElementById("periodReturn").textContent =
+        periodReturn.toFixed(2) + "%";
+}
+
+/* ---------------- CHART RANGE ---------------- */
+
+function getVisibleData(data) {
+    const range = rangeSelector.value;
+
+    if (range === "all") return data;
+
+    const count = Number(range);
+
+    return data.slice(-count);
+}
+
+/* ---------------- PRICE CHART ---------------- */
+
+function updatePriceChart() {
+    const closes = stockData.map(item => item.close);
+
+    const sma = calculateSMA(closes, 20);
+    const ema = calculateEMA(closes, 20);
+
+    const labels = stockData.map(item => item.date);
+
+    const visible = getVisibleData(stockData);
+    const startIndex = stockData.length - visible.length;
+
+    const visibleLabels = labels.slice(startIndex);
+
+    const visibleClose = closes.slice(startIndex);
+    const visibleSMA = sma.slice(startIndex);
+    const visibleEMA = ema.slice(startIndex);
+
+    const ctx = document.getElementById("stockChart");
+
+    if (stockChart) stockChart.destroy();
+
+    stockChart = new Chart(ctx, {
         type: "line",
 
         data: {
-            labels: labels,
-            datasets: datasets
+            labels: visibleLabels,
+
+            datasets: [
+                {
+                    label: "Closing Price",
+                    data: visibleClose,
+                    borderColor: "#1d4ed8",
+                    backgroundColor: "rgba(29,78,216,0.08)",
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.2
+                },
+                {
+                    label: "SMA (20)",
+                    data: visibleSMA,
+                    borderColor: "#16a34a",
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.2
+                },
+                {
+                    label: "EMA (20)",
+                    data: visibleEMA,
+                    borderColor: "#f59e0b",
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.2
+                }
+            ]
         },
 
         options: {
@@ -379,39 +297,20 @@ function updateChart() {
             maintainAspectRatio: false,
 
             interaction: {
-                mode: "index",
-                intersect: false
+                intersect: false,
+                mode: "index"
             },
 
             plugins: {
                 legend: {
-                    display: true,
                     position: "bottom"
-                },
-
-                tooltip: {
-                    enabled: true
                 }
             },
 
             scales: {
                 x: {
                     ticks: {
-                        maxTicksLimit: 8,
-                        maxRotation: 0
-                    },
-
-                    grid: {
-                        display: false
-                    }
-                },
-
-                y: {
-                    beginAtZero: false,
-
-                    title: {
-                        display: true,
-                        text: "Closing Price"
+                        maxTicksLimit: 10
                     }
                 }
             }
@@ -419,77 +318,271 @@ function updateChart() {
     });
 }
 
-// Load and analyse a selected CSV file.
-csvFile.addEventListener("change", event => {
+/* ---------------- MACD CALCULATION ---------------- */
+
+function updateMACD() {
+    const closes = stockData.map(item => item.close);
+
+    const ema12 = calculateEMA(closes, 12);
+    const ema26 = calculateEMA(closes, 26);
+
+    const macdLine = ema12.map((value, index) => {
+        return value - ema26[index];
+    });
+
+    const signalLine = calculateEMA(macdLine, 9);
+
+    const histogram = macdLine.map((value, index) => {
+        return value - signalLine[index];
+    });
+
+    const lastIndex = closes.length - 1;
+
+    document.getElementById("latestMACD").textContent =
+        macdLine[lastIndex].toFixed(4);
+
+    document.getElementById("latestSignal").textContent =
+        signalLine[lastIndex].toFixed(4);
+
+    document.getElementById("latestHistogram").textContent =
+        histogram[lastIndex].toFixed(4);
+
+    const visible = getVisibleData(stockData);
+    const startIndex = stockData.length - visible.length;
+
+    const labels = stockData
+        .slice(startIndex)
+        .map(item => item.date);
+
+    const visibleMACD = macdLine.slice(startIndex);
+    const visibleSignal = signalLine.slice(startIndex);
+    const visibleHistogram = histogram.slice(startIndex);
+
+    const ctx = document.getElementById("macdChart");
+
+    if (macdChart) macdChart.destroy();
+
+    macdChart = new Chart(ctx, {
+        type: "bar",
+
+        data: {
+            labels: labels,
+
+            datasets: [
+                {
+                    type: "line",
+                    label: "MACD Line",
+                    data: visibleMACD,
+                    borderColor: "#1d4ed8",
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.2
+                },
+                {
+                    type: "line",
+                    label: "Signal Line",
+                    data: visibleSignal,
+                    borderColor: "#f59e0b",
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.2
+                },
+                {
+                    type: "bar",
+                    label: "Histogram",
+                    data: visibleHistogram,
+                    backgroundColor: visibleHistogram.map(value =>
+                        value >= 0 ? "#16a34a" : "#dc2626"
+                    )
+                }
+            ]
+        },
+
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+
+            interaction: {
+                intersect: false,
+                mode: "index"
+            },
+
+            plugins: {
+                legend: {
+                    position: "bottom"
+                }
+            },
+
+            scales: {
+                x: {
+                    ticks: {
+                        maxTicksLimit: 10
+                    }
+                }
+            }
+        }
+    });
+}
+
+/* ---------------- BREAKOUT DETECTION ---------------- */
+
+function updateBreakouts() {
+    const signals = [];
+
+    for (let i = 20; i < stockData.length; i++) {
+
+        const previousRecords = stockData.slice(i - 20, i);
+
+        const previousHighs = previousRecords.map(item => {
+            return Number.isFinite(item.high)
+                ? item.high
+                : item.close;
+        });
+
+        const previous20DayHigh = Math.max(...previousHighs);
+
+        const currentClose = stockData[i].close;
+
+        if (currentClose > previous20DayHigh) {
+            signals.push({
+                date: stockData[i].date,
+                close: currentClose,
+                previousHigh: previous20DayHigh
+            });
+        }
+    }
+
+    document.getElementById("bullishCount").textContent =
+        signals.length;
+
+    document.getElementById("latestBreakout").textContent =
+        signals.length > 0
+            ? signals[signals.length - 1].date
+            : "No signal";
+
+    const tbody = document.getElementById("breakoutTableBody");
+
+    if (signals.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="4" class="empty-table">
+                    No bullish breakouts detected in the uploaded data.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    const recentSignals = signals.slice(-20).reverse();
+
+    tbody.innerHTML = recentSignals.map(signal => `
+        <tr>
+            <td>${escapeHTML(signal.date)}</td>
+            <td>${signal.close.toFixed(2)}</td>
+            <td>${signal.previousHigh.toFixed(2)}</td>
+            <td class="breakout-positive">Bullish Breakout</td>
+        </tr>
+    `).join("");
+}
+
+/* ---------------- STOCK TABLE ---------------- */
+
+function updateStockTable() {
+    const tbody = document.getElementById("stockTableBody");
+
+    const recentRecords = stockData.slice(-20).reverse();
+
+    tbody.innerHTML = recentRecords.map(item => `
+        <tr>
+            <td>${escapeHTML(item.date)}</td>
+            <td>${formatNumber(item.open)}</td>
+            <td>${formatNumber(item.high)}</td>
+            <td>${formatNumber(item.low)}</td>
+            <td>${formatNumber(item.close)}</td>
+            <td>${formatNumber(item.volume)}</td>
+        </tr>
+    `).join("");
+
+    document.getElementById("recordCount").textContent =
+        stockData.length + " records";
+}
+
+function formatNumber(value) {
+    return Number.isFinite(value) ? value.toLocaleString("en-IN", {
+        maximumFractionDigits: 2
+    }) : "—";
+}
+
+function escapeHTML(value) {
+    return String(value).replace(/[&<>"']/g, character => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+    })[character]);
+}
+
+/* ---------------- CSV DOWNLOAD ---------------- */
+
+document.getElementById("downloadBtn").addEventListener("click", () => {
+    if (stockData.length === 0) {
+        alert("Please upload stock data first.");
+        return;
+    }
+
+    const csv = [
+        ["Date", "Open", "High", "Low", "Close", "Volume"].join(","),
+
+        ...stockData.map(item => [
+            item.date,
+            item.open,
+            item.high,
+            item.low,
+            item.close,
+            item.volume
+        ].join(","))
+    ].join("\n");
+
+    const blob = new Blob([csv], {
+        type: "text/csv;charset=utf-8;"
+    });
+
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "stock_analysis_data.csv";
+    link.click();
+
+    URL.revokeObjectURL(url);
+});
+
+/* ---------------- EVENT LISTENERS ---------------- */
+
+csvInput.addEventListener("change", event => {
     const file = event.target.files[0];
 
-    if (!file) {
-        return;
-    }
-
-    if (!file.name.toLowerCase().endsWith(".csv")) {
-        fileStatus.textContent = "Please choose a CSV file.";
-        return;
-    }
-
-    fileStatus.textContent = "Reading file...";
+    if (!file) return;
 
     const reader = new FileReader();
 
-    reader.onload = function (e) {
-        try {
-            originalCSV = e.target.result;
-
-            stockData = readStockData(originalCSV);
-
-            updateStatistics(stockData);
-            updateTable(stockData);
-            updateChart();
-
-            downloadBtn.disabled = false;
-
-            fileStatus.textContent =
-                `${file.name} · ${stockData.length.toLocaleString("en-IN")} records loaded`;
-        } catch (error) {
-            console.error(error);
-            fileStatus.textContent = error.message;
-        }
+    reader.onload = function(e) {
+        loadCSV(e.target.result);
     };
 
-    reader.onerror = function () {
-        fileStatus.textContent = "Unable to read the selected file.";
+    reader.onerror = function() {
+        alert("Unable to read the selected CSV file.");
     };
 
     reader.readAsText(file);
 });
 
-// Refresh the chart when the date range changes.
-chartRange.addEventListener("change", () => {
-    if (stockData.length > 0) {
-        updateChart();
-    }
+rangeSelector.addEventListener("change", () => {
+    if (stockData.length === 0) return;
+
+    updatePriceChart();
+    updateMACD();
 });
-
-// Download the original CSV file.
-downloadBtn.addEventListener("click", () => {
-    if (!originalCSV) {
-        return;
-    }
-
-    const blob = new Blob([originalCSV], {
-        type: "text/csv;charset=utf-8;"
-    });
-
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-
-    link.href = url;
-    link.download = "stock_analysis_data.csv";
-
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-
-    URL.revokeObjectURL(url);
-});
+```
 
