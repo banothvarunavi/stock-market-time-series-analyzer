@@ -1,37 +1,34 @@
+?variant="standard" id="62841" title="Complete index.html"}
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>StockSense | Stock Market Analyzer</title>
-
+    <title>StockSense - Stock Market Analyzer</title>
     <link rel="stylesheet" href="style.css">
-
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="app.js" defer></script>
 </head>
 
 <body>
 
+<div class="layout">
+
     <aside class="sidebar">
-        <div class="brand">
-            <div class="brand-icon">S</div>
-            <div>
-                <h2>StockSense</h2>
-                <p>MARKET ANALYTICS</p>
-            </div>
-        </div>
+        <h1 class="logo">StockSense</h1>
+        <p class="subtitle">Market Intelligence</p>
 
         <nav>
-            <a href="#overview" class="nav-link active">▦ &nbsp; Dashboard</a>
-            <a href="#price-chart" class="nav-link">↗ &nbsp; Price Analysis</a>
-            <a href="#data-section" class="nav-link">▤ &nbsp; Stock Data</a>
+            <a href="#dashboard">Dashboard</a>
+            <a href="#price-section">Price Analysis</a>
+            <a href="#macd-section">MACD Analysis</a>
+            <a href="#breakout-section">Breakout Detection</a>
+            <a href="#data-section">Stock Data</a>
         </nav>
 
-        <div class="sidebar-bottom">
-            <span class="status-dot"></span>
-            <span>Historical Data Analysis</span>
+        <div class="sidebar-footer">
+            C++ Stock Market Analyzer
         </div>
     </aside>
 
@@ -39,131 +36,181 @@
 
         <header class="topbar">
             <div>
-                <p class="eyebrow">MARKET INTELLIGENCE / OVERVIEW</p>
                 <h1>Stock Market Dashboard</h1>
-                <p class="subtitle">
-                    Analyse historical prices and moving averages.
-                </p>
+                <p>Historical stock market time-series analysis</p>
             </div>
 
-            <div class="project-badge">
-                <span class="status-dot"></span>
-                C++ Analysis Project
-            </div>
+            <label class="upload-button">
+                Upload CSV
+                <input type="file" id="csvFile" accept=".csv">
+            </label>
         </header>
 
-        <section class="upload-panel">
-            <div>
-                <h3>Load Your Stock Data</h3>
-                <p>Select a CSV file containing your historical stock data.</p>
-            </div>
+        <!-- DASHBOARD -->
+        <section id="dashboard">
 
-            <label for="csvFile" class="upload-button">
-                ↑ &nbsp; Choose CSV File
-            </label>
-
-            <input type="file" id="csvFile" accept=".csv,text/csv">
-
-            <span id="fileStatus" class="file-status">
-                No file selected
-            </span>
-        </section>
-
-        <section id="overview">
             <div class="section-heading">
-                <div>
-                    <h2>Market Overview</h2>
-                    <p>Key statistics for your selected stock data.</p>
-                </div>
-                <span class="live-badge">HISTORICAL DATA</span>
+                <h2>Market Overview</h2>
+                <p>Summary of uploaded stock data</p>
             </div>
 
             <div class="stats-grid">
 
-                <article class="stat-card">
-                    <div class="stat-label">Latest Close</div>
-                    <div class="stat-value" id="latestClose">—</div>
-                    <div class="stat-note">Most recent closing price</div>
-                </article>
+                <div class="stat-card">
+                    <p>Latest Closing Price</p>
+                    <h2 id="latestClose">—</h2>
+                </div>
 
-                <article class="stat-card">
-                    <div class="stat-label">Highest Close</div>
-                    <div class="stat-value" id="highestClose">—</div>
-                    <div class="stat-note">Highest closing price</div>
-                </article>
+                <div class="stat-card">
+                    <p>Highest Closing Price</p>
+                    <h2 id="highestClose">—</h2>
+                </div>
 
-                <article class="stat-card">
-                    <div class="stat-label">Lowest Close</div>
-                    <div class="stat-value" id="lowestClose">—</div>
-                    <div class="stat-note">Lowest closing price</div>
-                </article>
+                <div class="stat-card">
+                    <p>Lowest Closing Price</p>
+                    <h2 id="lowestClose">—</h2>
+                </div>
 
-                <article class="stat-card">
-                    <div class="stat-label">Period Return</div>
-                    <div class="stat-value" id="periodReturn">—</div>
-                    <div class="stat-note">Change from first to last close</div>
-                </article>
+                <div class="stat-card">
+                    <p>Period Return</p>
+                    <h2 id="periodReturn">—</h2>
+                </div>
 
             </div>
+
         </section>
 
-        <section class="chart-panel" id="price-chart">
+        <!-- PRICE ANALYSIS -->
+        <section class="panel" id="price-section">
 
             <div class="panel-heading">
                 <div>
-                    <h2>Price & Moving Average Analysis</h2>
-                    <p>Compare closing prices with SMA and EMA.</p>
+                    <h2>Price Analysis</h2>
+                    <p>Closing price with SMA and EMA indicators</p>
                 </div>
 
-                <select id="chartRange" aria-label="Select chart date range">
-                    <option value="all">All Available Data</option>
-                    <option value="365">Last 1 Year</option>
-                    <option value="180">Last 6 Months</option>
-                    <option value="90">Last 3 Months</option>
+                <select id="chartRange">
+                    <option value="all">All Data</option>
                     <option value="30">Last 30 Days</option>
+                    <option value="90">Last 90 Days</option>
+                    <option value="180">Last 180 Days</option>
                 </select>
-            </div>
-
-            <div class="chart-legend">
-                <span>
-                    <i class="legend-dot closing-dot"></i>
-                    Closing Price
-                </span>
-
-                <span>
-                    <i class="legend-dot sma-dot"></i>
-                    SMA
-                </span>
-
-                <span>
-                    <i class="legend-dot ema-dot"></i>
-                    EMA
-                </span>
             </div>
 
             <div class="chart-container">
                 <canvas id="stockChart"></canvas>
+            </div>
 
-                <div id="chartPlaceholder" class="chart-placeholder">
-                    <div class="placeholder-icon">↗</div>
-                    <h3>Your Stock Chart Will Appear Here</h3>
-                    <p>Choose a CSV file above to visualise historical prices.</p>
-                </div>
+            <div class="chart-legend">
+                <span>Closing Price</span>
+                <span>SMA (20)</span>
+                <span>EMA (20)</span>
             </div>
 
         </section>
 
-        <section class="data-panel" id="data-section">
+        <!-- MACD ANALYSIS -->
+        <section class="panel" id="macd-section">
 
             <div class="panel-heading">
                 <div>
-                    <h2>Stock Records</h2>
-                    <p id="recordCount">No records loaded</p>
+                    <h2>MACD Analysis</h2>
+                    <p>Moving Average Convergence Divergence (12, 26, 9)</p>
                 </div>
 
-                <button id="downloadBtn" class="secondary-button" disabled>
-                    ↓ &nbsp; Download CSV
-                </button>
+                <span class="badge">MOMENTUM INDICATOR</span>
+            </div>
+
+            <div class="stats-grid">
+
+                <div class="stat-card">
+                    <p>Latest MACD</p>
+                    <h2 id="latestMACD">—</h2>
+                </div>
+
+                <div class="stat-card">
+                    <p>Signal Line</p>
+                    <h2 id="latestSignal">—</h2>
+                </div>
+
+                <div class="stat-card">
+                    <p>Histogram</p>
+                    <h2 id="latestHistogram">—</h2>
+                </div>
+
+            </div>
+
+            <div class="chart-container">
+                <canvas id="macdChart"></canvas>
+            </div>
+
+        </section>
+
+        <!-- BREAKOUT DETECTION -->
+        <section class="panel" id="breakout-section">
+
+            <div class="panel-heading">
+                <div>
+                    <h2>Breakout Detection</h2>
+                    <p>Detecting closing prices above the previous 20-day high</p>
+                </div>
+
+                <span class="badge">20-DAY BREAKOUT</span>
+            </div>
+
+            <div class="stats-grid">
+
+                <div class="stat-card">
+                    <p>Total Bullish Breakouts</p>
+                    <h2 id="bullishCount">0</h2>
+                </div>
+
+                <div class="stat-card">
+                    <p>Latest Breakout</p>
+                    <h2 id="latestBreakout">—</h2>
+                </div>
+
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Closing Price</th>
+                            <th>Previous 20-Day High</th>
+                            <th>Signal</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="breakoutTableBody">
+                        <tr>
+                            <td colspan="4" class="empty-table">
+                                Upload stock data to detect breakouts.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="note">
+                A bullish breakout is identified when the closing price
+                exceeds the highest price of the previous 20 trading days.
+                This is a technical indicator, not a guaranteed prediction.
+            </p>
+
+        </section>
+
+        <!-- STOCK DATA -->
+        <section class="panel" id="data-section">
+
+            <div class="panel-heading">
+                <div>
+                    <h2>Historical Stock Data</h2>
+                    <p id="recordCount">0 records</p>
+                </div>
+
+                <button id="downloadBtn">Download CSV</button>
             </div>
 
             <div class="table-wrapper">
@@ -182,7 +229,7 @@
                     <tbody id="stockTableBody">
                         <tr>
                             <td colspan="6" class="empty-table">
-                                Load a CSV file to display stock records.
+                                Upload a CSV file to display stock records.
                             </td>
                         </tr>
                     </tbody>
@@ -192,11 +239,11 @@
         </section>
 
         <footer>
-            <span>STOCKSENSE · STOCK MARKET ANALYZER</span>
-            <span>Built with C++ · HTML · CSS · JavaScript</span>
+            StockSense | Stock Market Time-Series Analyzer
         </footer>
 
     </main>
+</div>
 
 </body>
 </html>
