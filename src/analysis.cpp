@@ -1,83 +1,104 @@
-#include "analysis.h"
-#include <vector>
+#include "../include/analysis.h"
+#include <algorithm>
+
+using namespace std;
 
 // Simple Moving Average
-std::vector<double> calculateSMA(const std::vector<double>& prices, int period)
+vector<double> calculateSMA(const vector<double>& prices, int period)
 {
-    std::vector<double> sma;
+    vector<double> result;
 
-    if (prices.size() < period)
-        return sma;
+    if (period <= 0 || prices.size() < period)
+        return result;
 
-    for (size_t i = 0; i <= prices.size() - period; i++)
+    for (size_t i = period - 1; i < prices.size(); i++)
     {
-        double sum = 0.0;
+        double sum = 0;
 
         for (int j = 0; j < period; j++)
         {
-            sum += prices[i + j];
+            sum += prices[i - j];
         }
 
-        sma.push_back(sum / period);
+        result.push_back(sum / period);
     }
 
-    return sma;
+    return result;
 }
 
 // Exponential Moving Average
-std::vector<double> calculateEMA(const std::vector<double>& prices, int period)
+vector<double> calculateEMA(const vector<double>& prices, int period)
 {
-    std::vector<double> ema;
+    vector<double> result;
 
-    if (prices.size() < period)
-        return ema;
-
-    double sum = 0.0;
-
-    for (int i = 0; i < period; i++)
-    {
-        sum += prices[i];
-    }
-
-    double previousEMA = sum / period;
-    ema.push_back(previousEMA);
+    if (period <= 0 || prices.size() < period)
+        return result;
 
     double multiplier = 2.0 / (period + 1);
+    double ema = prices[0];
 
-    for (size_t i = period; i < prices.size(); i++)
+    result.push_back(ema);
+
+    for (size_t i = 1; i < prices.size(); i++)
     {
-        double currentEMA =
-            ((prices[i] - previousEMA) * multiplier) + previousEMA;
-
-        ema.push_back(currentEMA);
-        previousEMA = currentEMA;
+        ema = (prices[i] - ema) * multiplier + ema;
+        result.push_back(ema);
     }
 
-    return ema;
+    return result;
 }
 
-// MACD
-std::vector<double> calculateMACD(const std::vector<double>& prices)
+// Moving Average Convergence Divergence
+vector<double> calculateMACD(const vector<double>& prices)
 {
-    std::vector<double> ema12 = calculateEMA(prices, 12);
-    std::vector<double> ema26 = calculateEMA(prices, 26);
+    vector<double> result;
 
-    std::vector<double> macd;
+    if (prices.size() < 26)
+        return result;
 
-    if (ema26.empty())
-        return macd;
+    vector<double> ema12 = calculateEMA(prices, 12);
+    vector<double> ema26 = calculateEMA(prices, 26);
 
-    int start = 26 - 12;
-
-    for (int i = start; i < static_cast<int>(ema12.size()); i++)
+    for (size_t i = 25; i < prices.size(); i++)
     {
-        int ema26Index = i - start;
-
-        if (ema26Index < static_cast<int>(ema26.size()))
-        {
-            macd.push_back(ema12[i] - ema26[ema26Index]);
-        }
+        result.push_back(ema12[i] - ema26[i]);
     }
 
-    return macd;
+    return result;
+}
+
+// Breakout Detection
+vector<string> detectBreakouts(const vector<double>& prices, int period)
+{
+    vector<string> result;
+
+    if (period <= 0)
+        return result;
+
+    for (size_t i = 0; i < prices.size(); i++)
+    {
+        if (i < static_cast<size_t>(period))
+        {
+            result.push_back("Insufficient Data");
+            continue;
+        }
+
+        double highest = prices[i - period];
+        double lowest = prices[i - period];
+
+        for (size_t j = i - period; j < i; j++)
+        {
+            highest = max(highest, prices[j]);
+            lowest = min(lowest, prices[j]);
+        }
+
+        if (prices[i] > highest)
+            result.push_back("Bullish Breakout");
+        else if (prices[i] < lowest)
+            result.push_back("Bearish Breakout");
+        else
+            result.push_back("No Breakout");
+    }
+
+    return result;
 }

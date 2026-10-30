@@ -9,7 +9,7 @@
 
 using namespace std;
 
-// Remove commas from numbers like "26,075.10"
+// Remove commas from numbers
 string removeCommas(string value)
 {
     string result;
@@ -40,7 +40,6 @@ vector<StockRecord> loadStockData()
 
     string line;
 
-    // Skip header
     getline(file, line);
 
     while (getline(file, line))
@@ -139,6 +138,17 @@ int main()
     for (double value : macd)
     {
         cout << value << endl;
+    }
+
+    // 20-Day Breakout Detection
+    vector<string> breakouts = detectBreakouts(closingPrices, 20);
+
+    cout << "\n20-Day Breakout Detection" << endl;
+    cout << "-------------------------" << endl;
+
+    for (size_t i = 0; i < breakouts.size(); i++)
+    {
+        cout << records[i].date << " : " << breakouts[i] << endl;
     }
 
     return 0;
