@@ -106,7 +106,7 @@ graph TD
 
 ### 5.2 UML Class DiagramCode
 ```mermaid
-snippetclassDiagram
+classDiagram
 
     class StockRecord {
         +string date
@@ -143,7 +143,7 @@ snippetclassDiagram
 ```
 ### 5.3 UML Sequence DiagramCode
 ```mermaid
-snippetsequenceDiagram
+sequenceDiagram
 
     autonumber
     actor User
@@ -174,7 +174,7 @@ snippetsequenceDiagram
 ```
 ### 5.4 UML Use Case DiagramCode
 ```mermaid
-snippetflowchart LR
+flowchart LR
     User((User))
 
     subgraph SMA["Stock Market Analyzer"]
@@ -193,7 +193,7 @@ snippetflowchart LR
 ```
 ### 5.5 UML Activity DiagramCode
 ```mermaid
-snippetflowchart TD
+flowchart TD
 
     Start([Start]) --> Read["Read CSV file"]
     Read --> Parse["Parse and create StockRecord objects"]
